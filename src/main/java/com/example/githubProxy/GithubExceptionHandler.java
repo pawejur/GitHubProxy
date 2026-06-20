@@ -14,4 +14,10 @@ public class GithubExceptionHandler {
     DtoError userNotFound(UserNotFoundException exception) {
         return new DtoError(HttpStatus.NOT_FOUND.value(), exception.getMessage());
     }
+
+    @ExceptionHandler(RepoNotFoundException.class)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    DtoError userNotFound(RepoNotFoundException exception) {
+        return new DtoError(HttpStatus.NOT_FOUND.value(), exception.getMessage());
+    }
 }

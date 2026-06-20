@@ -1,103 +1,65 @@
 package com.example.githubProxy;
 
-
-import com.sun.net.httpserver.HttpServer;
-import org.junit.jupiter.api.AfterAll;
+import com.github.tomakehurst.wiremock.junit5.WireMockExtension;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.resttestclient.autoconfigure.AutoConfigureRestTestClient;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.client.RestTestClient;
-import com.sun.net.httpserver.HttpExchange;
 
-import java.io.IOException;
-import java.net.InetSocketAddress;
-import java.nio.charset.StandardCharsets;
+import static com.github.tomakehurst.wiremock.client.WireMock.*;
+import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMockConfig;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @AutoConfigureRestTestClient
-public class GithubProxyBasicIntegrationTest {
+class GithubProxyBasicIntegrationTest {
+
+    @RegisterExtension
+    static WireMockExtension wireMock = WireMockExtension.newInstance()
+            .options(wireMockConfig().dynamicPort())
+            .build();
 
     @Autowired
     private RestTestClient restClient;
 
-
-
-    private static final HttpServer githubServer = startGithubServer();
-
-    private static HttpServer startGithubServer() {
-        try {
-            HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
-            server.createContext("/", GithubProxyBasicIntegrationTest::handleGithubRequest);
-            server.start();
-            return server;
-        } catch (IOException exception) {
-            throw new IllegalStateException(
-                    "Could not start fake GitHub server",
-                    exception
-            );
-        }
-    }
-
     @DynamicPropertySource
     static void githubProperties(DynamicPropertyRegistry registry) {
-        registry.add(
-                "github.api-base-url",
-                () -> "http://localhost:" + githubServer.getAddress().getPort()
-        );
+        registry.add("github.api-base-url", wireMock::baseUrl);
     }
 
-    private static void handleGithubRequest(HttpExchange exchange)
-            throws IOException {
+    @BeforeEach
+    void stubGitHubApi() {
+        wireMock.stubFor(get(urlEqualTo("/users/test/repos"))
+                .willReturn(okJson("""
+                          [
+                            {
+                              "name": "project-one",
+                              "owner": {"login": "test"},
+                              "fork": false
+                            },
+                            {
+                              "name": "forked-project",
+                              "owner": {"login": "test"},
+                              "fork": true
+                            }
+                          ]
+                          """)));
 
-        String path = exchange.getRequestURI().getPath();
-
-        String body = switch (path) {
-            case "/users/test/repos" -> """
-                  [
-                    {
-                      "name": "project-one",
-                      "owner": {"login": "test"},
-                      "fork": false
-                    },
-                    {
-                      "name": "forked-project",
-                      "owner": {"login": "test"},
-                      "fork": true
-                    }
-                  ]
-                  """;
-
-            case "/repos/test/project-one/branches" -> """
-                  [
-                    {
-                      "name": "main",
-                      "commit": {"sha": "abc123"}
-                    }
-                  ]
-                  """;
-
-            default -> null;
-        };
-
-        if (body == null) {
-            exchange.sendResponseHeaders(404, -1);
-            exchange.close();
-            return;
-        }
-
-        byte[] response = body.getBytes(StandardCharsets.UTF_8);
-
-        exchange.getResponseHeaders()
-                .set("Content-Type", "application/json");
-
-        exchange.sendResponseHeaders(200, response.length);
-        exchange.getResponseBody().write(response);
-        exchange.close();
+        wireMock.stubFor(get(urlEqualTo(
+                "/repos/test/project-one/branches"))
+                .willReturn(okJson("""
+                          [
+                            {
+                              "name": "main",
+                              "commit": {"sha": "abc123"}
+                            }
+                          ]
+                          """)));
     }
-
 
     @Test
     void returnsOnlyNonForkRepositories() {
@@ -107,24 +69,24 @@ public class GithubProxyBasicIntegrationTest {
                 .expectStatus().isOk()
                 .expectBody()
                 .json("""
-                      [
-                        {
-                          "name": "project-one",
-                          "owner": "test",
-                          "branches": [
+                          [
                             {
-                              "name": "main",
-                              "sha": "abc123"
+                              "name": "project-one",
+                              "owner": "test",
+                              "branches": [
+                                {
+                                  "name": "main",
+                                  "sha": "abc123"
+                                }
+                              ]
                             }
                           ]
-                        }
-                      ]
-                      """);
-    }
+                          """);
 
-    @AfterAll
-    static void stopGithubServer() {
-        githubServer.stop(0);
-    }
+        wireMock.verify(getRequestedFor(
+                urlEqualTo("/users/test/repos")));
 
+        wireMock.verify(getRequestedFor(
+                urlEqualTo("/repos/test/project-one/branches")));
+    }
 }

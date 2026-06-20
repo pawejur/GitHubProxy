@@ -16,6 +16,17 @@ public class RepoController {
     private final GitHubClient gitHubClient;
 
 
+
+    @GetMapping("/{username}/repos")
+    DtoGitHubRepo[] repositories(@PathVariable String username){
+        return gitHubClient.fetchRepos(username);
+    }
+
+    @GetMapping("/{username}/{reponame}/branches")
+    DtoGitHubBranch[] branches(@PathVariable String username, @PathVariable String reponame){
+        return gitHubClient.fetchBranches(username,reponame);
+    }
+
     @GetMapping("/{username}")
     List<DtoRepo> repos(@PathVariable String username) {
 

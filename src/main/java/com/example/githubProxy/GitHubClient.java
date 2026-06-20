@@ -41,7 +41,7 @@ public class GitHubClient {
                     .body(DtoGitHubBranch[].class);
         } catch(HttpClientErrorException exception){
             if (exception.getStatusCode() == HttpStatus.NOT_FOUND) {
-                throw new UserNotFoundException("GitHub user '%s' was not found".formatted(username));
+                throw new RepoNotFoundException("GitHub repository '%s' of user '%s' was not found".formatted(reponame,username));
             }
             throw exception;
         }
