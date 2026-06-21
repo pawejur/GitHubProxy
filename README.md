@@ -70,16 +70,6 @@ If the GitHub user does not exist, the API returns HTTP `404`:
 }
 ```
 
-The API also returns HTTP `404` when the user exists but has no public
-repositories:
-
-```json
-{
-  "status": 404,
-  "message": "GitHub user 'some-user' has no public repositories"
-}
-```
-
 ## Configuration
 
 The GitHub API base URL is configured in
