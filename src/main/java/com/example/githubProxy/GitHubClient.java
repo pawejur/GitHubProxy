@@ -13,35 +13,42 @@ public class GitHubClient {
     GitHubClient(@Value("${github.api-base-url}") String baseApiUrl){
         this.baseApiUrl = baseApiUrl;
         this.repoApiUrl = baseApiUrl + "/users/{username}/repos";
-        this.branchApriUrl = baseApiUrl + "/repos/{username}/{reponame}/branches";
+        this.branchApiUrl = baseApiUrl + "/repos/{username}/{reponame}/branches";
     }
 
     private final RestClient restClient = RestClient.create();
     private final String baseApiUrl;
     private final String repoApiUrl;
-    private final String branchApriUrl;
+    private final String branchApiUrl;
 
 
     public DtoGitHubRepo[] fetchRepos(String username){
         try {
-            return restClient.get()
+            DtoGitHubRepo[] repositories = restClient.get()
                     .uri(repoApiUrl, username)
                     .retrieve()
                     .body(DtoGitHubRepo[].class);
+
+            if (repositories == null || repositories.length == 0) {
+                throw new NotFoundException(
+                        "GitHub user '%s' has no public repositories".formatted(username));
+            }
+
+            return repositories;
         } catch (HttpClientErrorException.NotFound exception){
-            throw new UserNotFoundException("GitHub user '%s' was not found".formatted(username));
+            throw new NotFoundException("GitHub user '%s' was not found".formatted(username));
         }
     }
 
     public DtoGitHubBranch[] fetchBranches(String username, String reponame){
         try {
             return restClient.get()
-                    .uri(branchApriUrl, username, reponame)
+                    .uri(branchApiUrl, username, reponame)
                     .retrieve()
                     .body(DtoGitHubBranch[].class);
         } catch(HttpClientErrorException exception){
             if (exception.getStatusCode() == HttpStatus.NOT_FOUND) {
-                throw new RepoNotFoundException("GitHub repository '%s' of user '%s' was not found".formatted(reponame,username));
+                throw new NotFoundException("GitHub repository '%s' or user '%s' was not found".formatted(reponame,username));
             }
             throw exception;
         }

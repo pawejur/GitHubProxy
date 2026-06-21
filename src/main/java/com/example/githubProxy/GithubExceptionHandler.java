@@ -9,15 +9,9 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 @RestControllerAdvice
 public class GithubExceptionHandler {
 
-    @ExceptionHandler(UserNotFoundException.class)
+    @ExceptionHandler(NotFoundException.class)
     @ResponseStatus(HttpStatus.NOT_FOUND)
-    DtoError userNotFound(UserNotFoundException exception) {
-        return new DtoError(HttpStatus.NOT_FOUND.value(), exception.getMessage());
-    }
-
-    @ExceptionHandler(RepoNotFoundException.class)
-    @ResponseStatus(HttpStatus.NOT_FOUND)
-    DtoError userNotFound(RepoNotFoundException exception) {
+    DtoError userNotFound(NotFoundException exception) {
         return new DtoError(HttpStatus.NOT_FOUND.value(), exception.getMessage());
     }
 }
