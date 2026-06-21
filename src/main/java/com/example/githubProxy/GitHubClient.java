@@ -24,17 +24,10 @@ public class GitHubClient {
 
     public DtoGitHubRepo[] fetchRepos(String username){
         try {
-            DtoGitHubRepo[] repositories = restClient.get()
+            return restClient.get()
                     .uri(repoApiUrl, username)
                     .retrieve()
                     .body(DtoGitHubRepo[].class);
-
-            if (repositories == null || repositories.length == 0) {
-                throw new NotFoundException(
-                        "GitHub user '%s' has no public repositories".formatted(username));
-            }
-
-            return repositories;
         } catch (HttpClientErrorException.NotFound exception){
             throw new NotFoundException("GitHub user '%s' was not found".formatted(username));
         }
